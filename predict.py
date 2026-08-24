@@ -27,7 +27,11 @@ class Predictor(BasePredictor):
 
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.model = CLIPModel.from_pretrained(HF_REPO).to(self.device).eval()
-        self.processor = CLIPProcessor.from_pretrained(HF_REPO)
+        # use_fast=False: falls back to the older, more stable image processor.
+        # The newer "fast" processor (now the default in recent transformers
+        # versions) can produce an inconsistent internal batch shape for a
+        # single image, causing a confusing padding/tensor error.
+        self.processor = CLIPProcessor.from_pretrained(HF_REPO, use_fast=False)
 
     def get_pooled_features(self, output):
         """Handles whatever shape get_image_features() returns across
@@ -49,7 +53,10 @@ class Predictor(BasePredictor):
     ) -> List[float]:
         """Returns one L2-normalized embedding vector (512 floats) for the image."""
         pil_image = Image.open(image).convert("RGB")
-        inputs = self.processor(images=[pil_image], return_tensors="pt").to(self.device)
+        # Pass a single image directly (not wrapped in a list) — this avoids
+        # a batch-shape inconsistency bug seen with some transformers/CLIP
+        # processor version combinations for single-image inputs.
+        inputs = self.processor(images=pil_image, return_tensors="pt").to(self.device)
 
         with torch.no_grad():
             raw_output = self.model.get_image_features(**inputs)
