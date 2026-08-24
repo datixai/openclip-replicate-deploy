@@ -2,6 +2,7 @@ build:
   gpu: true
   python_version: "3.11"
   python_packages:
+    - "numpy==1.26.4"
     - "torch==2.1.0"
     - "torchvision==0.16.0"
     - "transformers==4.36.0"
